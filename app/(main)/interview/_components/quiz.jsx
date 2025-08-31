@@ -9,6 +9,7 @@ import useFetch from "@/hooks/use-fetch";
 import { useEffect, useState } from "react";
 import { BarLoader } from "react-spinners";
 import { toast } from "sonner";
+import QuizResult from "./quiz-result";
 
 const Quiz = () =>{
 
@@ -72,9 +73,26 @@ const Quiz = () =>{
       }
     };
 
+    const startNewQuiz = () => {
+      setCurrentQuestion(0);
+      setAnswers([]);
+      setShowExplanation(false);
+      generateQuizFn();
+      setResultData(null);
+    };
+
     if(generatingQuiz){
         return <BarLoader className="mt-4" width={"100%"} color='gray' />
     }
+
+    // show result if quiz is completed
+    if (resultData) {
+      return (
+        <div>
+          <QuizResult result={resultData} onStartNew={startNewQuiz} />
+        </div>
+      )
+    }  
 
     if (!quizData) {
       return (

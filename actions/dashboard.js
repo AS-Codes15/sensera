@@ -66,7 +66,7 @@ export async function getIndustryInsights() {
       data: {
         industry: user.industry,
         ...insights,
-        lastUpdate: new Date(), // 👈 add this
+        // lastUpdate: new Date(), // 👈 add this
         nextUpdate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       },
     });

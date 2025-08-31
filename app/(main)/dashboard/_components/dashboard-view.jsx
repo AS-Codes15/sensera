@@ -45,16 +45,25 @@ const DashboardView = ({insights}) => {
     const OutlookIcon = getMarketOutlookInfo(insights.marketOutlook).icon;
     const outlookColor = getMarketOutlookInfo(insights.marketOutlook).color;
 
-    const lastUpdatedDate = insights.lastUpdate
-      ? format(new Date(insights.lastUpdate), "dd/MM/yyyy")
-      : format(new Date(), "dd/MM/yyyy");                              // fallback to today's date
+    // const lastUpdatedDate = insights.lastUpdate
+    //   ? format(new Date(insights.lastUpdate), "dd/MM/yyyy")
+    //   : format(new Date(), "dd/MM/yyyy");                              // fallback to today's date
 
 
 
+    // const nextUpdateDistance = formatDistanceToNow(
+    //     new Date(insights.nextUpdate),
+    //     { addSuffix: true }
+    // )
+
+    const lastUpdatedDate = format(
+      new Date(insights.lastUpdated),
+      "dd/MM/yyyy"
+    );
     const nextUpdateDistance = formatDistanceToNow(
-        new Date(insights.nextUpdate),
-        { addSuffix: true }
-    )
+      new Date(insights.nextUpdate),
+      { addSuffix: true }
+    );
 
   return (
     <div className="space-y-6">
