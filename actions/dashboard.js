@@ -31,22 +31,10 @@ export const generateAIInsights = async (industry) => {
   const result = await model.generateContent(prompt);
   const response = result.response;
   const text = response.text();
-
   const cleanedText = text.replace(/```(?:json)?\n?/g, "").trim();
-  return JSON.parse(cleanedText);
-  
-};
 
-// 🔧 Helper to normalize Prisma output before sending to client
-function normalizeInsight(insight) {
-  return {
-    ...insight,
-    salaryRanges: insight.salaryRanges ?? [],
-    nextUpdate: insight.nextUpdate ? insight.nextUpdate.toISOString() : null,
-    updatedAt: insight.updatedAt ? insight.updatedAt.toISOString() : null,
-    createdAt: insight.createdAt ? insight.createdAt.toISOString() : null,
-  };
-}
+  return JSON.parse(cleanedText);
+};
 
 export async function getIndustryInsights() {
   const { userId } = await auth();
@@ -59,21 +47,38 @@ export async function getIndustryInsights() {
 
   if (!user) throw new Error("User not found");
 
+  const now = new Date();
+  const intervalDays = 7;
+  const nextUpdate = new Date(now.getTime() + intervalDays * 24 * 60 * 60 * 1000);
+
+  // Case 1: No insights yet → create
   if (!user.industryInsight) {
     const insights = await generateAIInsights(user.industry);
 
-    const industryInsight = await db.industryInsight.create({
+    return await db.industryInsight.create({
       data: {
         industry: user.industry,
         ...insights,
-        // lastUpdate: new Date(), // 👈 add this
-        nextUpdate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        lastUpdated: now,
+        nextUpdate,
       },
     });
-
-    return normalizeInsight(industryInsight);
   }
 
-  return normalizeInsight(user.industryInsight);
-}
+  // Case 2: Insights expired → regenerate
+  if (user.industryInsight.nextUpdate < now) {
+    const insights = await generateAIInsights(user.industry);
 
+    return await db.industryInsight.update({
+      where: { id: user.industryInsight.id },
+      data: {
+        ...insights,
+        lastUpdated: now,
+        nextUpdate,
+      },
+    });
+  }
+
+  // Case 3: Still valid → return as is
+  return user.industryInsight;
+}
