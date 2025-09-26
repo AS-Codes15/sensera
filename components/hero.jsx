@@ -51,16 +51,16 @@ const HeroSection = () => {
             </div>
 
             <div className='flex justify-center space-x-4'> 
-                <Link href="/dashboard">
+                <Link href="/onboarding">
                     <button size='lg' className='px-8'>
                         Get Started
                     </button>
                 </Link>
-                <Link href="/dashboard">
+                {/* <Link href="/dashboard">
                     <button variant='outline' size='lg' className='px-8'>
                         Get Started
                     </button>
-                </Link>    
+                </Link>     */}
             </div>
 
             <div className='hero-image-wrapper mt-5 md:mt-0'>
