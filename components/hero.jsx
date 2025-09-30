@@ -52,7 +52,7 @@ const HeroSection = () => {
 
             <div className='flex justify-center space-x-4'> 
                 <Link href="/onboarding">
-                    <button size='lg' className='px-8'>
+                    <button size='lg' className='px-6 py-2 border rounded bg-primary text-primary-foreground hover:bg-primary/90'>
                         Get Started
                     </button>
                 </Link>

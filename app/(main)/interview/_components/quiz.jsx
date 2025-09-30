@@ -134,10 +134,15 @@ const Quiz = () =>{
             className="space-y-2"
           >
             {question.options.map((option, index) => {
+              const id = `option-${index}`;
               return (
                 <div key={index} className="flex items-center space-x-2">
-                  <RadioGroupItem value={option} id={`option-${index}`} />
-                  <Label htmlFor={`option-${index}`}>{option}</Label>
+                  <RadioGroupItem
+                    value={option}
+                    id={id}
+                    disabled={showExplanation} // ← lock answer after explanation
+                  />
+                  <Label htmlFor={id}>{option}</Label>
                 </div>
               );
             })}
