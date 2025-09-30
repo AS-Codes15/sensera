@@ -27,7 +27,7 @@ const formatDisplayDate = (dateString) => {
   return format(date, "MMM yyyy");
 };
 
-const EntryForm = ({ type, entries, onChange }) => {
+export function EntryForm({ type, entries, onChange }) {
   const [isAdding, setIsAdding] = useState(false);
 
   const {
@@ -272,5 +272,3 @@ const EntryForm = ({ type, entries, onChange }) => {
     </div>
   );
 }
-
-export default EntryForm;

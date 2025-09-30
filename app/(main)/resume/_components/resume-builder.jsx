@@ -18,16 +18,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { saveResume } from "@/actions/resume";
-import EntryForm from "./entry-form";
+import { EntryForm } from "./entry-form";
 import useFetch from "@/hooks/use-fetch";
 import { useUser } from "@clerk/nextjs";
 import { entriesToMarkdown } from "@/app/lib/helper";
 import { resumeSchema } from "@/app/lib/schema";
-//import html2pdf from "html2pdf.js/dist/html2pdf.min.js";
+import html2pdf from "html2pdf.js/dist/html2pdf.min.js";
+
+// Import MDEditor CSS for proper rendering
+import "@uiw/react-md-editor/markdown-editor.css";
+import "@uiw/react-markdown-preview/markdown.css";
 
 export default function ResumeBuilder({ initialContent }) {
   const [activeTab, setActiveTab] = useState("edit");
-  const [previewContent, setPreviewContent] = useState(initialContent);
+  const [previewContent, setPreviewContent] = useState(initialContent || "");
   const { user } = useUser();
   const [resumeMode, setResumeMode] = useState("preview");
 
@@ -37,6 +41,7 @@ export default function ResumeBuilder({ initialContent }) {
     handleSubmit,
     watch,
     formState: { errors },
+    reset,
   } = useForm({
     resolver: zodResolver(resumeSchema),
     defaultValues: {
@@ -63,13 +68,14 @@ export default function ResumeBuilder({ initialContent }) {
     if (initialContent) setActiveTab("preview");
   }, [initialContent]);
 
-  // Update preview content when form values change
+  // Update preview content when form values change (only in form mode)
   useEffect(() => {
-    if (activeTab === "edit") {
+    if (activeTab === "edit" || resumeMode === "preview") {
       const newContent = getCombinedContent();
-      setPreviewContent(newContent ? newContent : initialContent);
+      setPreviewContent(newContent || initialContent || "");
     }
-  }, [formValues, activeTab]);
+    // eslint-disable-next-line
+  }, [formValues, activeTab, resumeMode]);
 
   // Handle save result
   useEffect(() => {
@@ -81,6 +87,7 @@ export default function ResumeBuilder({ initialContent }) {
     }
   }, [saveResult, saveError, isSaving]);
 
+  // Helper: Markdown for contact info (no HTML, pure markdown)
   const getContactMarkdown = () => {
     const { contactInfo } = formValues;
     const parts = [];
@@ -88,14 +95,14 @@ export default function ResumeBuilder({ initialContent }) {
     if (contactInfo.mobile) parts.push(`📱 ${contactInfo.mobile}`);
     if (contactInfo.linkedin)
       parts.push(`💼 [LinkedIn](${contactInfo.linkedin})`);
-    if (contactInfo.twitter) parts.push(`🐦 [Twitter](${contactInfo.twitter})`);
-
+    if (contactInfo.twitter)
+      parts.push(`🐦 [Twitter](${contactInfo.twitter})`);
     return parts.length > 0
-      ? `## <div align="center">${user.fullName}</div>
-        \n\n<div align="center">\n\n${parts.join(" | ")}\n\n</div>`
-      : "";
+      ? `# ${user?.fullName || "Your Name"}\n\n${parts.join(" | ")}`
+      : `# ${user?.fullName || "Your Name"}`;
   };
 
+  // Helper: Combine all sections into markdown
   const getCombinedContent = () => {
     const { summary, skills, experience, education, projects } = formValues;
     return [
@@ -115,8 +122,6 @@ export default function ResumeBuilder({ initialContent }) {
   const generatePDF = async () => {
     setIsGenerating(true);
     try {
-      const html2pdf = (await import("html2pdf.js")).default;
-
       const element = document.getElementById("resume-pdf");
       const opt = {
         margin: [15, 15],
@@ -125,7 +130,6 @@ export default function ResumeBuilder({ initialContent }) {
         html2canvas: { scale: 2 },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
       };
-
       await html2pdf().set(opt).from(element).save();
     } catch (error) {
       console.error("PDF generation error:", error);
@@ -134,15 +138,13 @@ export default function ResumeBuilder({ initialContent }) {
     }
   };
 
-  const onSubmit = async (data) => {
+  const onSubmit = async () => {
     try {
       const formattedContent = previewContent
-        .replace(/\n/g, "\n") // Normalize newlines
-        .replace(/\n\s*\n/g, "\n\n") // Normalize multiple newlines to double newlines
+        .replace(/\n/g, "\n")
+        .replace(/\n\s*\n/g, "\n\n")
         .trim();
-
-      console.log(previewContent, formattedContent);
-      await saveResumeFn(previewContent);
+      await saveResumeFn(formattedContent);
     } catch (error) {
       console.error("Save error:", error);
     }
@@ -194,14 +196,13 @@ export default function ResumeBuilder({ initialContent }) {
           <TabsTrigger value="preview">Markdown</TabsTrigger>
         </TabsList>
 
+        {/* --- FORM TAB --- */}
         <TabsContent value="edit">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-
             {/* Contact Information */}
             <div className="space-y-4">
               <h3 className="text-lg font-medium">Contact Information</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border rounded-lg bg-muted/50">
-
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Email</label>
                   <Input
@@ -216,7 +217,6 @@ export default function ResumeBuilder({ initialContent }) {
                     </p>
                   )}
                 </div>
-
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Mobile Number</label>
                   <Input
@@ -230,7 +230,6 @@ export default function ResumeBuilder({ initialContent }) {
                     </p>
                   )}
                 </div>
-
                 <div className="space-y-2">
                   <label className="text-sm font-medium">LinkedIn URL</label>
                   <Input
@@ -244,7 +243,6 @@ export default function ResumeBuilder({ initialContent }) {
                     </p>
                   )}
                 </div>
-
                 <div className="space-y-2">
                   <label className="text-sm font-medium">
                     Twitter/X Profile
@@ -368,12 +366,12 @@ export default function ResumeBuilder({ initialContent }) {
           </form>
         </TabsContent>
 
+        {/* --- MARKDOWN TAB --- */}
         <TabsContent value="preview">
-          {activeTab === "preview" && (
+          <div className="mb-2 flex items-center gap-2">
             <Button
               variant="link"
               type="button"
-              className="mb-2"
               onClick={() =>
                 setResumeMode(resumeMode === "preview" ? "edit" : "preview")
               }
@@ -381,7 +379,7 @@ export default function ResumeBuilder({ initialContent }) {
               {resumeMode === "preview" ? (
                 <>
                   <Edit className="h-4 w-4" />
-                  Edit Resume
+                  Edit Markdown
                 </>
               ) : (
                 <>
@@ -390,37 +388,189 @@ export default function ResumeBuilder({ initialContent }) {
                 </>
               )}
             </Button>
-          )}
+            {resumeMode !== "preview" && (
+              <div className="flex items-center gap-2 border-2 border-yellow-600 text-yellow-600 rounded px-2 py-1">
+                <AlertTriangle className="h-5 w-5" />
+                <span className="text-xs">
+                  You will lose edited markdown if you update the form data.
+                </span>
+              </div>
+            )}
+          </div>
 
-          {activeTab === "preview" && resumeMode !== "preview" && (
-            <div className="flex p-3 gap-2 items-center border-2 border-yellow-600 text-yellow-600 rounded mb-2">
-              <AlertTriangle className="h-5 w-5" />
-              <span className="text-sm">
-                You will lose editied markdown if you update the form data.
-              </span>
-            </div>
-          )}
-          <div className="border rounded-lg">
+          <div className="border rounded-lg mb-6">
             <MDEditor
               value={previewContent}
               onChange={setPreviewContent}
-              height={800}
+              height={400}
               preview={resumeMode}
             />
           </div>
-          <div className="hidden">
-            <div id="resume-pdf">
-              <MDEditor.Markdown
-                source={previewContent}
-                style={{
-                  background: "white",
-                  color: "black",
-                }}
-              />
+
+          {/* --- PDF/Professional Preview --- */}
+          <div
+            id="resume-pdf"
+            className="mt-6 p-8 bg-white border rounded-lg shadow-md space-y-8 max-w-3xl mx-auto"
+          >
+            {/* Header */}
+            <div className="text-center">
+              <h1 className="text-4xl font-bold tracking-tight text-gray-900">
+                {user?.fullName || "Your Name"}
+              </h1>
+              <div className="text-gray-600 mt-2 flex flex-wrap justify-center gap-4 text-base">
+                {formValues.contactInfo?.email && (
+                  <span>📧 {formValues.contactInfo.email}</span>
+                )}
+                {formValues.contactInfo?.mobile && (
+                  <span>📱 {formValues.contactInfo.mobile}</span>
+                )}
+                {formValues.contactInfo?.linkedin && (
+                  <span>
+                    💼{" "}
+                    <a
+                      href={formValues.contactInfo.linkedin}
+                      className="underline"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      LinkedIn
+                    </a>
+                  </span>
+                )}
+                {formValues.contactInfo?.twitter && (
+                  <span>
+                    🐦{" "}
+                    <a
+                      href={formValues.contactInfo.twitter}
+                      className="underline"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Twitter
+                    </a>
+                  </span>
+                )}
+              </div>
             </div>
+
+            {/* Professional Summary */}
+            {formValues.summary && (
+              <section>
+                <h2 className="text-2xl font-semibold border-b pb-1 mb-2 text-gray-800">
+                  Professional Summary
+                </h2>
+                <p className="whitespace-pre-wrap text-gray-700">
+                  {formValues.summary}
+                </p>
+              </section>
+            )}
+
+            {/* Skills */}
+            {formValues.skills && (
+              <section>
+                <h2 className="text-2xl font-semibold border-b pb-1 mb-2 text-gray-800">
+                  Skills
+                </h2>
+                <ul className="list-disc list-inside text-gray-700">
+                  {formValues.skills
+                    .split(/,|\n/)
+                    .map((skill, idx) =>
+                      skill.trim() ? (
+                        <li key={idx}>{skill.trim()}</li>
+                      ) : null
+                    )}
+                </ul>
+              </section>
+            )}
+
+            {/* Work Experience */}
+            {formValues.experience?.length > 0 && (
+              <section>
+                <h2 className="text-2xl font-semibold border-b pb-1 mb-2 text-gray-800">
+                  Work Experience
+                </h2>
+                {formValues.experience.map((item, i) => (
+                  <div key={i} className="mb-4">
+                    <div className="flex flex-col md:flex-row md:justify-between md:items-center">
+                      <h3 className="text-xl font-medium text-gray-900">
+                        {item.title}{" "}
+                        <span className="font-normal text-gray-600">
+                          @ {item.organization}
+                        </span>
+                      </h3>
+                      <span className="text-gray-500 text-sm">
+                        {item.current
+                          ? `${item.startDate} - Present`
+                          : `${item.startDate} - ${item.endDate}`}
+                      </span>
+                    </div>
+                    <p className="mt-1 whitespace-pre-wrap text-gray-700">
+                      {item.description}
+                    </p>
+                  </div>
+                ))}
+              </section>
+            )}
+
+            {/* Education */}
+            {formValues.education?.length > 0 && (
+              <section>
+                <h2 className="text-2xl font-semibold border-b pb-1 mb-2 text-gray-800">
+                  Education
+                </h2>
+                {formValues.education.map((item, i) => (
+                  <div key={i} className="mb-4">
+                    <div className="flex flex-col md:flex-row md:justify-between md:items-center">
+                      <h3 className="text-xl font-medium text-gray-900">
+                        {item.title}{" "}
+                        <span className="font-normal text-gray-600">
+                          @ {item.organization}
+                        </span>
+                      </h3>
+                      <span className="text-gray-500 text-sm">
+                        {item.current
+                          ? `${item.startDate} - Present`
+                          : `${item.startDate} - ${item.endDate}`}
+                      </span>
+                    </div>
+                    <p className="mt-1 whitespace-pre-wrap text-gray-700">
+                      {item.description}
+                    </p>
+                  </div>
+                ))}
+              </section>
+            )}
+
+            {/* Projects */}
+            {formValues.projects?.length > 0 && (
+              <section>
+                <h2 className="text-2xl font-semibold border-b pb-1 mb-2 text-gray-800">
+                  Projects
+                </h2>
+                {formValues.projects.map((item, i) => (
+                  <div key={i} className="mb-4">
+                    <div className="flex flex-col md:flex-row md:justify-between md:items-center">
+                      <h3 className="text-xl font-medium text-gray-900">
+                        {item.title}{" "}
+                        <span className="font-normal text-gray-600">
+                          @ {item.organization}
+                        </span>
+                      </h3>
+                      <span className="text-gray-500 text-sm">
+                        {item.current
+                          ? `${item.startDate} - Present`
+                          : `${item.startDate} - ${item.endDate}`}
+                      </span>
+                    </div>
+                    <p className="mt-1 whitespace-pre-wrap text-gray-700">
+                      {item.description}
+                    </p>
+                  </div>
+                ))}
+              </section>
+            )}
           </div>
-        </TabsContent> 
-        
+        </TabsContent>
       </Tabs>
     </div>
   );
