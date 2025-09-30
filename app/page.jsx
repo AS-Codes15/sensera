@@ -13,7 +13,7 @@ import { faqs } from "@/data/faqs";
 export default function Home() {
 
   return(
-    <div>
+    <div className="overflow-x-hidden">
       <div className="grid-background"></div>
 
       <HeroSection />
